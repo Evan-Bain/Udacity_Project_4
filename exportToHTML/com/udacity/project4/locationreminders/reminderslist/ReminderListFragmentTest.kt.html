@@ -1,0 +1,109 @@
+<html>
+<head>
+<title>ReminderListFragmentTest.kt</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #808080;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ReminderListFragmentTest.kt</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com.udacity.project4.locationreminders.reminderslist</span>
+
+<span class="s1">import android.content.Context</span>
+<span class="s1">import android.os.Bundle</span>
+<span class="s1">import androidx.arch.core.executor.testing.InstantTaskExecutorRule</span>
+<span class="s1">import androidx.core.os.bundleOf</span>
+<span class="s1">import androidx.fragment.app.testing.launchFragmentInContainer</span>
+<span class="s1">import androidx.navigation.NavController</span>
+<span class="s1">import androidx.navigation.Navigation</span>
+<span class="s1">import androidx.room.Room</span>
+<span class="s1">import androidx.test.core.app.ApplicationProvider</span>
+<span class="s1">import androidx.test.core.app.ApplicationProvider.getApplicationContext</span>
+<span class="s1">import androidx.test.espresso.Espresso.onView</span>
+<span class="s1">import androidx.test.espresso.action.ViewActions.click</span>
+<span class="s1">import androidx.test.espresso.matcher.ViewMatchers.withId</span>
+<span class="s1">import androidx.test.ext.junit.runners.AndroidJUnit4</span>
+<span class="s1">import androidx.test.filters.MediumTest</span>
+<span class="s1">import com.udacity.project4.R</span>
+<span class="s1">import kotlinx.coroutines.ExperimentalCoroutinesApi</span>
+<span class="s1">import org.junit.Assert.*</span>
+<span class="s1">import org.junit.Test</span>
+<span class="s1">import org.junit.runner.RunWith</span>
+<span class="s1">import org.mockito.ArgumentMatchers</span>
+<span class="s1">import org.mockito.Mockito.*</span>
+<span class="s1">import androidx.test.espresso.Espresso.onView</span>
+<span class="s1">import androidx.test.espresso.assertion.ViewAssertions.matches</span>
+<span class="s1">import androidx.test.espresso.matcher.ViewMatchers.isChecked</span>
+<span class="s1">import androidx.test.espresso.matcher.ViewMatchers.isDisplayed</span>
+<span class="s1">import androidx.test.espresso.matcher.ViewMatchers.withId</span>
+<span class="s1">import androidx.test.espresso.matcher.ViewMatchers.withText</span>
+<span class="s1">import com.udacity.project4.MainCoroutineRule</span>
+<span class="s1">import com.udacity.project4.locationreminders.FakeRepository</span>
+<span class="s1">import com.udacity.project4.locationreminders.data.ReminderDataSource</span>
+<span class="s1">import com.udacity.project4.locationreminders.data.local.LocalDB</span>
+<span class="s1">import com.udacity.project4.locationreminders.data.local.RemindersDatabase</span>
+<span class="s1">import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository</span>
+<span class="s1">import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel</span>
+<span class="s1">import kotlinx.coroutines.Dispatchers</span>
+<span class="s1">import kotlinx.coroutines.delay</span>
+<span class="s1">import kotlinx.coroutines.launch</span>
+<span class="s1">import kotlinx.coroutines.test.runBlockingTest</span>
+<span class="s1">import org.hamcrest.core.IsNot.not</span>
+<span class="s1">import org.junit.After</span>
+<span class="s1">import org.junit.Before</span>
+<span class="s1">import org.junit.Rule</span>
+<span class="s1">import org.koin.android.ext.koin.androidContext</span>
+<span class="s1">import org.koin.androidx.viewmodel.dsl.viewModel</span>
+<span class="s1">import org.koin.core.KoinComponent</span>
+<span class="s1">import org.koin.core.context.loadKoinModules</span>
+<span class="s1">import org.koin.core.context.startKoin</span>
+<span class="s1">import org.koin.core.context.stopKoin</span>
+<span class="s1">import org.koin.dsl.module</span>
+<span class="s1">import org.koin.test.KoinTest</span>
+<span class="s1">import org.koin.test.inject</span>
+
+<span class="s1">@RunWith(AndroidJUnit4::</span><span class="s0">class</span><span class="s1">)</span>
+<span class="s1">@ExperimentalCoroutinesApi</span>
+<span class="s2">//UI Testing</span>
+<span class="s1">@MediumTest</span>
+<span class="s0">class </span><span class="s1">ReminderListFragmentTest : KoinTest {</span>
+
+<span class="s2">//    TODO: test the navigation of the fragments.</span>
+<span class="s2">//    TODO: test the displayed data on the UI.</span>
+<span class="s2">//    TODO: add testing for the error messages.</span>
+
+    <span class="s1">private </span><span class="s0">val </span><span class="s1">repository : ReminderDataSource by inject()</span>
+
+    <span class="s1">@Before</span>
+    <span class="s0">fun </span><span class="s1">before() {</span>
+        <span class="s1">stopKoin()</span>
+        <span class="s1">startKoin {</span>
+            <span class="s1">module {</span>
+                <span class="s1">single { RemindersLocalRepository(get()) </span><span class="s0">as </span><span class="s1">ReminderDataSource} } }</span>
+    <span class="s1">}</span>
+
+    <span class="s1">@After</span>
+    <span class="s0">fun </span><span class="s1">after() {</span>
+        <span class="s1">stopKoin()</span>
+    <span class="s1">}</span>
+
+
+        <span class="s1">@Test</span>
+        <span class="s0">fun </span><span class="s1">reminderListFragment_basicUiTest() = runBlockingTest {</span>
+            <span class="s0">val </span><span class="s1">fragmentArgs = bundleOf()</span>
+            <span class="s1">launchFragmentInContainer&lt;ReminderListFragment&gt;(fragmentArgs</span><span class="s0">, </span><span class="s1">R.style.AppTheme)</span>
+
+            <span class="s1">repository.deleteAllReminders()</span>
+
+            <span class="s1">onView(withId(R.id.noDataTextView)).check(matches(isDisplayed()))</span>
+        <span class="s1">}</span>
+<span class="s1">}</span></pre>
+</body>
+</html>
