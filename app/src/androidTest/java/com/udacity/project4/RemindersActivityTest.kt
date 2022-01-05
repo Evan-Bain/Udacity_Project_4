@@ -4,8 +4,11 @@ import android.app.Application
 import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
+import androidx.test.espresso.Espresso
 import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.IdlingRegistry
@@ -51,10 +54,15 @@ import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.UiObject
 
 import androidx.test.uiautomator.UiDevice
+import com.agoda.kakao.screen.Screen
+import com.agoda.kakao.screen.Screen.Companion.onScreen
+import com.agoda.kakao.text.KButton
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runBlockingTest
 import org.hamcrest.Matchers.`is`
 import org.koin.core.module.Module
 import org.koin.test.KoinTest
+import org.mockito.Mockito
 
 
 @RunWith(AndroidJUnit4::class)
@@ -164,8 +172,15 @@ class RemindersActivityTest :
         onView(withId(R.id.addReminderFAB)).perform(click())
         onView(withId(R.id.reminderTitle)).perform(replaceText("title"))
         onView(withId(R.id.reminderDescription)).perform(replaceText("desc"))
-        onView(withId(R.id.saveReminder)).perform(click())
+        onScreen<SearchScreen> {
+            saveReminder.click()
+        }
         assertThat(saveViewModel.showToast.getOrAwaitValue(), `is`("Enter all fields"))
         activityScenario.close()
     }
+
+    class SearchScreen : Screen<SearchScreen>() {
+        val saveReminder = KButton { withId(R.id.saveReminder) }
+        }
     }
+

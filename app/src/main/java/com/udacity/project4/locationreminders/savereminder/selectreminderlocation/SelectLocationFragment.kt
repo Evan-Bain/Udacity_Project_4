@@ -31,6 +31,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     //Use Koin to get the view model of the SaveReminder
     override val _viewModel: SaveReminderViewModel by inject()
     private lateinit var binding: FragmentSelectLocationBinding
+    private lateinit var mapFragment: SupportMapFragment
 
     private lateinit var map: GoogleMap
     private val REQUEST_LOCATION_PERMISSION = 1
@@ -49,7 +50,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
 
 //      add the map setup implementation
-        val mapFragment = childFragmentManager
+        mapFragment = childFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
@@ -91,7 +92,7 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
-        //setMapStyle(map)
+        setMapStyle(map)
         enableMyLocation()
         moveToMyLocation()
         setPoiClick(map)
@@ -184,18 +185,17 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             _viewModel.latitude.value = poi.latLng.latitude
             _viewModel.longitude.value = poi.latLng.longitude
             _viewModel.reminderSelectedLocationStr.value = poi.name
-            _viewModel.navigationCommand.value = NavigationCommand.To(
-                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
-            )        }
+            _viewModel.navigationCommand.value = NavigationCommand.Back
+            childFragmentManager.beginTransaction().remove(mapFragment).commit()
+        }
         map.setOnMarkerClickListener {
             _viewModel.selectedPOI.value = PointOfInterest(it.position, "Current Location",
                 "Current Location")
             _viewModel.latitude.value = it.position.latitude
             _viewModel.longitude.value = it.position.longitude
             _viewModel.reminderSelectedLocationStr.value = "Current Location"
-            _viewModel.navigationCommand.value = NavigationCommand.To(
-                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
-            )
+            _viewModel.navigationCommand.value = NavigationCommand.Back
+            childFragmentManager.beginTransaction().remove(mapFragment).commit()
             return@setOnMarkerClickListener true
         }
         map.setOnMapClickListener {
@@ -204,9 +204,8 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             _viewModel.latitude.value = it.latitude
             _viewModel.longitude.value = it.longitude
             _viewModel.reminderSelectedLocationStr.value = "Custom Location"
-            _viewModel.navigationCommand.value = NavigationCommand.To(
-                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
-            )
+            _viewModel.navigationCommand.value = NavigationCommand.Back
+            childFragmentManager.beginTransaction().remove(mapFragment).commit()
         }
     }
 

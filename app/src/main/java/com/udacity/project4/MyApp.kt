@@ -16,11 +16,10 @@ import org.koin.dsl.module
 
 class MyApp : Application() {
 
-    companion object {
-        lateinit var appContext: Context
-        /**
-         * use Koin Library as a service locator
-         */
+
+    override fun onCreate() {
+        super.onCreate()
+
         val myModule = module {
             //Declare a ViewModel - be later inject into Fragment with dedicated injector using by viewModel()
             viewModel {
@@ -37,21 +36,13 @@ class MyApp : Application() {
                     get() as ReminderDataSource
                 )
             }
-            single { RemindersLocalRepository(get()) }
-            single { LocalDB.createRemindersDao(appContext) }
+            single { RemindersLocalRepository(get()) as ReminderDataSource }
+            single { LocalDB.createRemindersDao(this@MyApp) }
         }
-    }
 
-    override fun onCreate() {
-        super.onCreate()
-        appContext = this@MyApp
         startKoin {
             androidContext(this@MyApp)
             modules(listOf(myModule))
         }
-    }
-
-    internal fun injectModule(module: Module) {
-        loadKoinModules(module)
     }
 }
