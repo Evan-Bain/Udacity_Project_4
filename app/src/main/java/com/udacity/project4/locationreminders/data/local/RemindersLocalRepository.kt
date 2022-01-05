@@ -19,12 +19,21 @@ class RemindersLocalRepository(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ReminderDataSource {
 
+    private var shouldReturnError = false
+
+    override fun setShouldReturnError(value: Boolean) {
+        shouldReturnError = value
+    }
+
     /**
      * Get the reminders list from the local db
      * @return Result the holds a Success with all the reminders or an Error object with the error message
      */
     override suspend fun getReminders(): Result<List<ReminderDTO>> = withContext(ioDispatcher) {
         wrapEspressoIdlingResource {
+            if(shouldReturnError) {
+                return@withContext Result.Error("Testing Error")
+            }
             return@withContext try {
                 Result.Success(remindersDao.getReminders())
             } catch (ex: Exception) {
@@ -49,6 +58,9 @@ class RemindersLocalRepository(
      */
     override suspend fun getReminder(id: String): Result<ReminderDTO> = withContext(ioDispatcher) {
         wrapEspressoIdlingResource {
+            if(shouldReturnError) {
+                return@withContext Result.Error("Testing Error")
+            }
             try {
                 val reminder = remindersDao.getReminderById(id)
                 if (reminder != null) {

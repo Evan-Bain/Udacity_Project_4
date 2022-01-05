@@ -17,14 +17,14 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.android.gms.maps.model.MarkerOptions
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.databinding.FragmentSelectLocationBinding
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
 import org.koin.android.ext.android.inject
+import com.google.android.gms.maps.model.*
+import com.udacity.project4.base.NavigationCommand
+
 
 class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
@@ -91,10 +91,10 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
-        setPoiClick(map)
         //setMapStyle(map)
         enableMyLocation()
         moveToMyLocation()
+        setPoiClick(map)
     }
 
     override fun onRequestPermissionsResult(
@@ -137,12 +137,25 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
                     locationLatLng = LatLng(
                         location!!.latitude, location.longitude)
 
+                    map.addMarker(
+                        MarkerOptions()
+                            .position(locationLatLng)
+                            .title("Current Position")
+                    )
+
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(
                         locationLatLng, 15f
                     ))
                 }
         } else {
             locationLatLng = LatLng(37.42216782736121, -122.08407897285726)
+
+            map.addMarker(
+                MarkerOptions()
+                    .position(locationLatLng)
+                    .title("Current Position")
+            )
+
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(
                 locationLatLng, 15f
             ))
@@ -171,7 +184,30 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             _viewModel.latitude.value = poi.latLng.latitude
             _viewModel.longitude.value = poi.latLng.longitude
             _viewModel.reminderSelectedLocationStr.value = poi.name
-            findNavController().navigate(R.id.saveReminderFragment)
+            _viewModel.navigationCommand.value = NavigationCommand.To(
+                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
+            )        }
+        map.setOnMarkerClickListener {
+            _viewModel.selectedPOI.value = PointOfInterest(it.position, "Current Location",
+                "Current Location")
+            _viewModel.latitude.value = it.position.latitude
+            _viewModel.longitude.value = it.position.longitude
+            _viewModel.reminderSelectedLocationStr.value = "Current Location"
+            _viewModel.navigationCommand.value = NavigationCommand.To(
+                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
+            )
+            return@setOnMarkerClickListener true
+        }
+        map.setOnMapClickListener {
+            _viewModel.selectedPOI.value = PointOfInterest(it, "Custom Location",
+                "Custom Location")
+            _viewModel.latitude.value = it.latitude
+            _viewModel.longitude.value = it.longitude
+            _viewModel.reminderSelectedLocationStr.value = "Custom Location"
+            _viewModel.navigationCommand.value = NavigationCommand.To(
+                SelectLocationFragmentDirections.actionSelectLocationFragmentToSaveReminderFragment()
+            )
         }
     }
+
 }

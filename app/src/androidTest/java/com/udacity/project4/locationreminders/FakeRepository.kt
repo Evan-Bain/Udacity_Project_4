@@ -14,7 +14,7 @@ class FakeRepository(
 
     private var shouldReturnError = false
 
-    fun setReturnError(value: Boolean) {
+    override fun setShouldReturnError(value: Boolean) {
         shouldReturnError = value
     }
 

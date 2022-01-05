@@ -1,61 +1,54 @@
 package com.udacity.project4.locationreminders.reminderslist
 
+import android.app.Application
 import android.os.Bundle
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import androidx.core.os.bundleOf
 import androidx.fragment.app.testing.launchFragmentInContainer
-import androidx.room.Room
+import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.IdlingRegistry
+import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.MediumTest
-import androidx.test.platform.app.InstrumentationRegistry
 import com.udacity.project4.MainCoroutineRule
-import com.udacity.project4.MyApp
 import com.udacity.project4.R
+import com.udacity.project4.getOrAwaitValue
 import com.udacity.project4.locationreminders.data.ReminderDataSource
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.data.local.LocalDB
-import com.udacity.project4.locationreminders.data.local.RemindersDatabase
 import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository
-import com.udacity.project4.util.DataBindingIdlingResource
-import com.udacity.project4.util.monitorFragment
-import com.udacity.project4.utils.EspressoIdlingResource
+import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
-import org.junit.After
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.hamcrest.CoreMatchers.`is`
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.core.context.loadKoinModules
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.core.context.unloadKoinModules
-import org.koin.core.module.Module
 import org.koin.dsl.module
+import org.koin.test.AutoCloseKoinTest
 import org.koin.test.KoinTest
-import org.koin.test.inject
+import org.koin.test.get
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 
 @RunWith(AndroidJUnit4::class)
 @ExperimentalCoroutinesApi
 //UI Testing
 @MediumTest
-class ReminderListFragmentTest: KoinTest {
+class ReminderListFragmentTest: KoinTest, AutoCloseKoinTest() {
 
 //    test the navigation of the fragments.
 //    test the displayed data on the UI.
 //    add testing for the error messages.
-
-    private lateinit var database: RemindersDatabase
-    private val viewModel: RemindersListViewModel by inject()
 
     @get:Rule
     val mainCoroutineRule = MainCoroutineRule()
@@ -63,49 +56,44 @@ class ReminderListFragmentTest: KoinTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
+    private lateinit var repository: ReminderDataSource
+    private lateinit var viewModel: RemindersListViewModel
+    private lateinit var appContext: Application
+
+    /**
+     * As we use Koin as a Service Locator Library to develop our code, we'll also use Koin to test our code.
+     * at this step we will initialize Koin related code to be able to use it in out testing.
+     */
     @Before
-    fun before() {
-        stopKoin()
-        val mockedDataSource = mock(ReminderDataSource::class.java)
+    fun init() {
+        stopKoin()//stop the original app koin
+        appContext = ApplicationProvider.getApplicationContext()
         val myModule = module {
-            viewModel(override = true) {
+            viewModel {
                 RemindersListViewModel(
-                    MyApp(),
-                    mockedDataSource
+                    appContext,
+                    get() as ReminderDataSource
                 )
             }
-            single(override = true) { mockedDataSource }
-            single(override = true) { database.reminderDao() }
+            single { RemindersLocalRepository(get()) }
+            single { LocalDB.createRemindersDao(appContext) }
         }
+        //declare a new koin module
         startKoin {
-            modules(myModule)
+            modules(listOf(myModule))
+        }
+        //Get our real repository
+        repository = get()
+        viewModel = get()
+
+        //clear the data to start fresh
+        runBlocking {
+            repository.deleteAllReminders()
         }
     }
-
-    @After
-    fun after() {
-        stopKoin()
-    }
-
-    @Before
-    fun initDb() {
-        database = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            RemindersDatabase::class.java
-        ).allowMainThreadQueries().build()
-    }
-
-    @After
-    fun closeDb() = database.close()
 
     @Test
-    fun reminderListFragment_noData() = mainCoroutineRule.runBlockingTest {
-        val reminder = ReminderDTO("title", "desc", "location",
-        0.0,0.0, "1001")
-
-        database.reminderDao().saveReminder(reminder)
-
-        viewModel.loadReminders()
+    fun reminderListFragment_noData() {
 
         launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
 
@@ -114,6 +102,48 @@ class ReminderListFragmentTest: KoinTest {
 
     @Test
     fun reminderListFragment_oneTask() {
+        val reminder = ReminderDTO(
+            "title", "desc", "location",
+            0.0,0.0
+        )
 
+        mainCoroutineRule.launch {
+            repository.saveReminder(reminder)
+        }
+        viewModel.loadReminders()
+
+        launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
+
+        onView(withId(R.id.reminderCardView)).check(matches(isDisplayed()))
+        onView(withId(R.id.title)).check(matches(withText("title")))
+        onView(withId(R.id.description)).check(matches(withText("desc")))
+    }
+
+    @Test
+    fun reminderListFragment_toastError() {
+        repository.setShouldReturnError(true)
+
+        viewModel.loadReminders()
+
+        launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
+
+        onView(withId(R.id.noDataTextView)).check(matches(isDisplayed()))
+        assertThat(viewModel.showSnackBar.getOrAwaitValue(), `is`("Testing Error"))
+    }
+
+    @Test
+    fun reminderListFragment_navigateToSaveReminder() {
+        val scenario =launchFragmentInContainer<ReminderListFragment>(Bundle(), R.style.AppTheme)
+
+        val navController = mock(NavController::class.java)
+
+        scenario.onFragment {
+            Navigation.setViewNavController(it.view!!, navController)
+        }
+
+        onView(withId(R.id.addReminderFAB)).perform(click())
+        verify(navController).navigate(
+            ReminderListFragmentDirections.toSaveReminder()
+        )
     }
 }

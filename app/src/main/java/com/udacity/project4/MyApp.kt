@@ -37,7 +37,7 @@ class MyApp : Application() {
                     get() as ReminderDataSource
                 )
             }
-            single { RemindersLocalRepository(get()) as ReminderDataSource }
+            single { RemindersLocalRepository(get()) }
             single { LocalDB.createRemindersDao(appContext) }
         }
     }
@@ -47,7 +47,7 @@ class MyApp : Application() {
         appContext = this@MyApp
         startKoin {
             androidContext(this@MyApp)
-            modules(myModule)
+            modules(listOf(myModule))
         }
     }
 

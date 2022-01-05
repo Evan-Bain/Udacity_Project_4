@@ -67,7 +67,7 @@ class RemindersLocalRepositoryTest {
 
     @Test
     fun getReminders_Failure() = mainCoroutineRule.runBlockingTest {
-        repository.setReturnError(true)
+        repository.setShouldReturnError(true)
 
         val value = repository.getReminders()
 
@@ -89,7 +89,7 @@ class RemindersLocalRepositoryTest {
         val newReminder = ReminderDTO("title", "desc",
             "location", 0.0, 0.0)
         repository.saveReminder(newReminder)
-        repository.setReturnError(true)
+        repository.setShouldReturnError(true)
 
         val value = repository.getReminder("title")
 

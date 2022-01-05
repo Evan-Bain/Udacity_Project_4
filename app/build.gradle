@@ -141,4 +141,12 @@ dependencies {
 
     androidTestImplementation 'com.agoda.kakao:kakao:2.4.0'
 
+    androidTestImplementation "com.linkedin.dexmaker:dexmaker-mockito:$dexMakerVersion"
+
+    androidTestImplementation "androidx.test.espresso:espresso-contrib:$espressoVersion"
+
+    androidTestImplementation 'com.android.support.test:runner:0.2'
+    androidTestImplementation 'com.android.support.test:rules:0.2'
+    androidTestImplementation 'com.android.support.test.uiautomator:uiautomator-v18:2.1.1'
+
 }
