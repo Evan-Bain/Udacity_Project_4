@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.udacity.project4">
+
+    <application>
+        <activity
+            android:theme="@style/AppTheme"
+            android:name="androidx.fragment.app.FragmentActivity" />
+    </application>
+
+</manifest>

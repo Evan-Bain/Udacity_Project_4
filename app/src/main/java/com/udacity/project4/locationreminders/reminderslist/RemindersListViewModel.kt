@@ -22,11 +22,11 @@ class RemindersListViewModel(
      * or show error if any
      */
     fun loadReminders() {
-        showLoading.value = true
+        showLoading.postValue(true)
         viewModelScope.launch {
             //interacting with the dataSource has to be through a coroutine
             val result = dataSource.getReminders()
-            showLoading.postValue(false)
+            showLoading.value = false
             when (result) {
                 is Result.Success<*> -> {
                     val dataList = ArrayList<ReminderDataItem>()
