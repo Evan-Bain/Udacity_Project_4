@@ -20,6 +20,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <ImageButton
+            android:id="@+id/refresh_button"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:src="@drawable/ic_baseline_refresh_24"
+            android:layout_margin="16dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

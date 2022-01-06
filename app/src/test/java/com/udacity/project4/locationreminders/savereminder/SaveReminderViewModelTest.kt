@@ -21,9 +21,12 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.core.context.stopKoin
+import org.robolectric.annotation.Config
 
 @ExperimentalCoroutinesApi
 @RunWith(AndroidJUnit4::class)
+@Config(sdk = [29])
 class SaveReminderViewModelTest {
 //provide testing to the SaveReminderView and its live data objects
 
@@ -37,6 +40,7 @@ class SaveReminderViewModelTest {
 
     @Before
     fun setupViewModel() {
+        stopKoin()
         viewModel = SaveReminderViewModel(
             ApplicationProvider.getApplicationContext(), FakeDataSource())
     }

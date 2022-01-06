@@ -24,6 +24,7 @@ import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
+import androidx.test.rule.GrantPermissionRule
 import com.udacity.project4.locationreminders.RemindersActivity
 import com.udacity.project4.locationreminders.data.ReminderDataSource
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
@@ -147,7 +148,7 @@ class RemindersActivityTest :
 //    add End to End testing to the app
 
     //TEST DOES NOT WORK ON EMULATOR
-    //ERROR "KoinApplication has not been started"
+    //ERROR "KoinApplication has not been started" AFTER SAVE REMINDER CLICK (second time)
     //REAL DEVICE WILL WORK
     @Test
     fun addTask() {

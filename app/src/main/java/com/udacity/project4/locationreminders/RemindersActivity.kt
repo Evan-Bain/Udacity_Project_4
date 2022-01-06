@@ -1,6 +1,7 @@
 package com.udacity.project4.locationreminders
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.MenuItem
@@ -13,6 +14,10 @@ import com.udacity.project4.R
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
 import com.udacity.project4.utils.sendNotification
 import kotlinx.android.synthetic.main.activity_reminders.*
+import android.location.LocationManager
+
+
+
 
 /**
  * The RemindersActivity that holds the reminders fragments
@@ -40,5 +45,13 @@ class RemindersActivity : AppCompatActivity() {
             }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    fun locationServices(): Boolean {
+        val locationManager = applicationContext.getSystemService(LOCATION_SERVICE) as LocationManager
+        val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        return gps && network
     }
 }

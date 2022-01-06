@@ -7,6 +7,7 @@ import com.udacity.project4.locationreminders.MainCoroutineRule
 import com.udacity.project4.locationreminders.data.FakeDataSource
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.data.dto.Result
+import com.udacity.project4.locationreminders.getOrAwaitValue
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
@@ -17,9 +18,12 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.core.context.stopKoin
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 @ExperimentalCoroutinesApi
+@Config(sdk = [29])
 class RemindersListViewModelTest {
 
     //provide testing to the RemindersListViewModel and its live data objects
@@ -34,6 +38,7 @@ class RemindersListViewModelTest {
 
     @Before
     fun setupViewModel() {
+        stopKoin()
         viewModel = RemindersListViewModel(
             ApplicationProvider.getApplicationContext(), FakeDataSource()
         )
@@ -90,5 +95,14 @@ class RemindersListViewModelTest {
         val value = viewModel.remindersList.value?.get(0)?.title
 
         assertThat(value, `is`("title"))
+    }
+
+    @Test
+    fun loadReminders_returnError() {
+        viewModel.dataSource.setShouldReturnError(true)
+
+        viewModel.loadReminders()
+
+        assertThat(viewModel.showSnackBar.getOrAwaitValue(), `is`("Testing Error"))
     }
 }

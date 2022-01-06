@@ -8,9 +8,17 @@ import java.lang.Exception
 class FakeDataSource(
     var reminders: MutableList<ReminderDTO>? = mutableListOf()) : ReminderDataSource {
 
+    private var shouldReturnError = false
+
+    override fun setShouldReturnError(value: Boolean) {
+        shouldReturnError = value
+    }
+
 //    Create a fake data source to act as a double to the real data source
 
     override suspend fun getReminders(): Result<List<ReminderDTO>> {
+        if(shouldReturnError) { return Result.Error("Testing Error") }
+
         reminders?.let { return Result.Success(ArrayList(it)) }
         return Result.Error("Reminders not found")
     }
@@ -20,6 +28,8 @@ class FakeDataSource(
     }
 
     override suspend fun getReminder(id: String): Result<ReminderDTO> {
+        if(shouldReturnError) { return Result.Error("Testing Error") }
+
         reminders?.let {
             for(i in 0..reminders?.size!!) {
                 if(id == reminders!![i].title) {
