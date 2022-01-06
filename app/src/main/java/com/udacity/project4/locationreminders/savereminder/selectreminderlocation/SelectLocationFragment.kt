@@ -3,8 +3,10 @@ package com.udacity.project4.locationreminders.savereminder.selectreminderlocati
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.view.*
@@ -38,9 +40,8 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
     private lateinit var map: GoogleMap
     private val REQUEST_LOCATION_PERMISSION = 1
-    private val REQUEST_LOCATION_PERMISSSION_COOLER = 0
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var firstCheck = 0
+    private lateinit var locationManager: LocationManager
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -50,6 +51,8 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
 
         binding.viewModel = _viewModel
         binding.lifecycleOwner = this
+
+        locationManager = activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         setHasOptionsMenu(true)
 
@@ -127,39 +130,17 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
             Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun isCoolerPermissionGranted() : Boolean {
-        return ContextCompat.checkSelfPermission(
-            requireContext(),
-            Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-    }
-
     @SuppressLint("MissingPermission")
     private fun enableMyLocation() {
         if(isPermissionGranted()) {
             map.isMyLocationEnabled = true
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                if(!isCoolerPermissionGranted()) {
-                    _viewModel.showSnackBar.value =
-                        "Please enable location permanently to receive full features of app"
-                }
-            }
         } else {
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                requestPermissions(
-                    arrayOf<String>(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION,
-                        Manifest.permission.ACCESS_BACKGROUND_LOCATION),
-                    REQUEST_LOCATION_PERMISSION
-                )
-            } else {
-                requestPermissions(
-                    arrayOf<String>(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION),
-                    REQUEST_LOCATION_PERMISSION
-                )
-            }
+            requestPermissions(
+                arrayOf<String>(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION),
+                REQUEST_LOCATION_PERMISSION
+            )
         }
         binding.refreshButton.setOnClickListener {
             enableMyLocation()
@@ -169,7 +150,9 @@ class SelectLocationFragment : BaseFragment(), OnMapReadyCallback {
     @SuppressLint("MissingPermission")
     private fun moveToMyLocation() {
         var locationLatLng: LatLng
-        if(map.isMyLocationEnabled) {
+        val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        if(map.isMyLocationEnabled && gps && network) {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { location: Location? ->
                     locationLatLng = LatLng(

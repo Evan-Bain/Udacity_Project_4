@@ -2,6 +2,7 @@ package com.udacity.project4.locationreminders.savereminder
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -14,10 +15,6 @@ import android.view.ViewGroup
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
-import com.google.android.gms.location.Geofence
-import com.google.android.gms.location.GeofencingClient
-import com.google.android.gms.location.GeofencingRequest
-import com.google.android.gms.location.LocationServices
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.base.NavigationCommand
@@ -30,8 +27,18 @@ import android.location.LocationManager
 import android.content.Context.LOCATION_SERVICE
 import android.location.Location
 import android.location.LocationListener
+import android.location.LocationRequest
 import androidx.core.content.ContextCompat.getSystemService
+import com.google.android.gms.location.*
+import com.google.android.gms.location.LocationRequest.create
+import com.google.gson.internal.UnsafeAllocator.create
 import com.udacity.project4.locationreminders.RemindersActivity
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.LocationServices
+
+import com.google.android.gms.common.api.GoogleApiClient
+import android.content.DialogInterface
+import android.provider.Settings
 
 
 class SaveReminderFragment : BaseFragment() {
@@ -71,24 +78,20 @@ class SaveReminderFragment : BaseFragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.lifecycleOwner = this
         binding.selectLocation.setOnClickListener {
-            //            Navigate to another fragment to get the user location
-            val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-            val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-            if(gps && network) {
-                _viewModel.navigationCommand.value =
-                    NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
-            } else {
-                _viewModel.showSnackBar.value = "Enable location on device to proceed"
-            }
+            _viewModel.navigationCommand.value =
+                NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
         }
 
         binding.saveReminder.setOnClickListener {
             val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
             val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-            if(gps && network) {
-                checkPermissions()
-            } else {
-                _viewModel.showSnackBar.value = "Enable location on device to create reminder"
+            if(enableMyLocation()) {
+                if(gps && network) {
+                    _viewModel.showSnackBar.value = "Geofence added"
+                    createGeofence()
+                } else {
+                    buildAlertMessage()
+                }
             }
         }
     }
@@ -133,12 +136,6 @@ class SaveReminderFragment : BaseFragment() {
             }
         } else {
             _viewModel.showToast.value = "Enter all fields"
-        }
-    }
-
-    private fun checkPermissions() {
-        if(enableMyLocation()) {
-            createGeofence()
         }
     }
 
@@ -211,5 +208,17 @@ class SaveReminderFragment : BaseFragment() {
             }
             return false
         }
+    }
+
+    private fun buildAlertMessage() {
+        val builder: AlertDialog.Builder = AlertDialog.Builder(activity)
+        builder.setMessage("For a better experience, turn on device location")
+            .setCancelable(false)
+            .setPositiveButton("Ok",
+                DialogInterface.OnClickListener { dialog, id -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) })
+            .setNegativeButton("No Thanks",
+                DialogInterface.OnClickListener { dialog, id -> dialog.cancel() })
+        val alert: AlertDialog = builder.create()
+        alert.show()
     }
 }

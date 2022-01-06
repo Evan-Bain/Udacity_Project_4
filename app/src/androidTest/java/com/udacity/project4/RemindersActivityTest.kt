@@ -165,6 +165,7 @@ class RemindersActivityTest :
         activityScenario.close()
     }
 
+    //toast test
     @Test
     fun addTask_errorToast() {
         val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
@@ -178,6 +179,23 @@ class RemindersActivityTest :
         }
         assertThat(saveViewModel.showToast.getOrAwaitValue(), `is`("Enter all fields"))
         activityScenario.close()
+    }
+
+    //snackbar test
+    //turn off location permissions for this test
+    @Test
+    fun locationOffSnackbar() {
+        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
+        dataBindingIdlingResource.monitorActivity(activityScenario)
+
+        val device = UiDevice.getInstance(getInstrumentation())
+        val marker = device.findObject(UiSelector().text("Deny"))
+
+        onView(withId(R.id.addReminderFAB)).perform(click())
+        onView(withId(R.id.selectLocation)).perform(click())
+        marker.click()
+
+        assertThat(saveViewModel.showSnackBar.value, `is`("Please enable location to receive full features of app"))
     }
 
     class SearchScreen : Screen<SearchScreen>() {
