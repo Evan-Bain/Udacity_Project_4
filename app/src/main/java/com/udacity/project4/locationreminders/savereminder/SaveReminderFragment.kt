@@ -45,6 +45,8 @@ import android.content.IntentSender
 import android.content.IntentSender.SendIntentException
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.common.api.*
 
 import com.google.android.gms.location.LocationSettingsStates
@@ -66,9 +68,17 @@ class SaveReminderFragment : BaseFragment() {
 
     private lateinit var locationManager: LocationManager
 
+    private var firstLocationEnabled = false
+
     private val geofencePendingIntent: PendingIntent by lazy {
         val intent = Intent(requireContext(), GeofenceBroadcastReceiver::class.java)
         PendingIntent.getBroadcast(requireContext(), 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    private var launcher=  registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()){ result->
+        if (result.resultCode == Activity.RESULT_OK) {
+            _viewModel.locationEnabled.value = true
+        }
     }
 
     override fun onCreateView(
@@ -81,6 +91,7 @@ class SaveReminderFragment : BaseFragment() {
         setDisplayHomeAsUpEnabled(true)
 
         binding.viewModel = _viewModel
+        _viewModel.locationEnabled.value = false
 
         locationManager = activity?.getSystemService(LOCATION_SERVICE) as LocationManager
 
@@ -96,6 +107,12 @@ class SaveReminderFragment : BaseFragment() {
             _viewModel.navigationCommand.value =
                 NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
         }
+
+        _viewModel.locationEnabled.observe(viewLifecycleOwner, {
+            if(it == true) {
+                createGeofence()
+            }
+        })
 
         binding.saveReminder.setOnClickListener {
             enableMyLocation()
@@ -144,6 +161,7 @@ class SaveReminderFragment : BaseFragment() {
                 Log.e("SaveReminderFragment", e.toString())
             }
         } else {
+            _viewModel.locationEnabled.value = false
             _viewModel.showToast.value = "Enter all fields"
         }
     }
@@ -181,7 +199,7 @@ class SaveReminderFragment : BaseFragment() {
     @SuppressLint("MissingPermission")
     private fun enableMyLocation() {
         if (isPermissionGranted()) {
-            _viewModel.locationEnabled.value = true
+            firstLocationEnabled = true
         } else {
             //ONLY FOR ANDROID 10 DUE TO THE DEVICE IM TESTING ON BEING ANDROID 11
             //NOT CALLING DIALOG (FEATURE OR BUG IN ANDROID 11)
@@ -203,52 +221,36 @@ class SaveReminderFragment : BaseFragment() {
                     REQUEST_LOCATION_PERMISSION
                 )
             }
+            firstLocationEnabled = false
             _viewModel.locationEnabled.value = false
         }
     }
 
     private fun dialogEnableLocation() {
-        googleApiClient = GoogleApiClient.Builder(activity!!)
-            .addApi(LocationServices.API)
-            .addConnectionCallbacks(object : GoogleApiClient.ConnectionCallbacks {
-                override fun onConnected(bundle: Bundle?) {}
-                override fun onConnectionSuspended(i: Int) {
-                    googleApiClient?.connect()
-                }
-            })
-            .addOnConnectionFailedListener {
-            }.build()
-        googleApiClient?.connect()
-
         val locationRequest = com.google.android.gms.location.LocationRequest.create()
-        val locationBuilder = LocationSettingsRequest.Builder()
+            .setPriority(com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY)
+            .setInterval(30 * 1000)
+            .setFastestInterval(5 * 1000)
+
+        val builder = LocationSettingsRequest.Builder()
             .addLocationRequest(locationRequest)
-        locationBuilder.setAlwaysShow(true)
+            .setAlwaysShow(true)
 
-        val result: PendingResult<LocationSettingsResult> =
-            LocationServices.SettingsApi.checkLocationSettings(googleApiClient, locationBuilder.build())
-        result.setResultCallback { result ->
-            val status: Status = result.status
-             if(status.statusCode == LocationSettingsStatusCodes.RESOLUTION_REQUIRED) {
-                    status.startResolutionForResult(
-                        activity,
-                        REQUEST_LOCATION_PERMISSION
-                    )
+        val pendingResult = LocationServices
+            .getSettingsClient(activity!!)
+            .checkLocationSettings(builder.build())
 
-            }
-        }
-    }
-
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            REQUEST_LOCATION_PERMISSION -> when (resultCode) {
-                Activity.RESULT_OK -> checkLocationAndStartGeofence()
-                Activity.RESULT_CANCELED -> _viewModel.showSnackBar.value = "Cannot create reminder without location"
+        pendingResult.addOnCompleteListener { task ->
+            if (task.isSuccessful.not()) {
+                task.exception?.let {
+                    if (it is ApiException && it.statusCode == LocationSettingsStatusCodes.RESOLUTION_REQUIRED) {
+                        (it as ResolvableApiException)
+                        val senderRequest = IntentSenderRequest.Builder(it.resolution).build()
+                        launcher.launch(senderRequest)
+                    }
+                }
+            } else {
+                _viewModel.locationEnabled.value = true
             }
         }
     }
@@ -264,6 +266,7 @@ class SaveReminderFragment : BaseFragment() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 _viewModel.locationEnabled.value = true
             } else {
+                _viewModel.locationEnabled.value = false
                 _viewModel.showSnackBar.value =
                     "Enable location to create reminder"
             }
@@ -274,10 +277,11 @@ class SaveReminderFragment : BaseFragment() {
         val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
         val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
-        if(_viewModel.locationEnabled.value == true) {
+        if(firstLocationEnabled) {
             if(gps && network) {
-                createGeofence()
+                _viewModel.locationEnabled.value = true
             } else {
+                _viewModel.locationEnabled.value = false
                 dialogEnableLocation()
             }
         }
