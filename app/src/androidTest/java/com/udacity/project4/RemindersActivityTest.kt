@@ -1,44 +1,41 @@
 package com.udacity.project4
 
 import android.app.Application
-import android.view.InputDevice
-import android.view.MotionEvent
+import android.service.autofill.Validators.not
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import androidx.navigation.NavController
-import androidx.navigation.Navigation
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
-import androidx.test.espresso.Espresso
 import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.IdlingRegistry
-import androidx.test.espresso.ViewAction
-import androidx.test.espresso.action.CoordinatesProvider
-import androidx.test.espresso.action.GeneralClickAction
-import androidx.test.espresso.action.Press
-import androidx.test.espresso.action.Tap
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.withDecorView
 import androidx.test.espresso.matcher.ViewMatchers.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
-import androidx.test.rule.GrantPermissionRule
+import androidx.test.rule.ActivityTestRule
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiSelector
+import com.agoda.kakao.screen.Screen
+import com.agoda.kakao.screen.Screen.Companion.onScreen
+import com.agoda.kakao.text.KButton
+import com.google.android.material.internal.ContextUtils.getActivity
 import com.udacity.project4.locationreminders.RemindersActivity
 import com.udacity.project4.locationreminders.data.ReminderDataSource
-import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.data.local.LocalDB
 import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository
 import com.udacity.project4.locationreminders.reminderslist.RemindersListViewModel
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
 import com.udacity.project4.util.DataBindingIdlingResource
 import com.udacity.project4.util.monitorActivity
-import com.udacity.project4.util.monitorFragment
 import com.udacity.project4.utils.EspressoIdlingResource
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.hamcrest.Matchers.*
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -47,23 +44,10 @@ import org.junit.runner.RunWith
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.dsl.module
-import org.koin.test.AutoCloseKoinTest
-import org.koin.test.get
-import androidx.test.uiautomator.UiSelector
-
-import androidx.test.uiautomator.UiObject
-
-import androidx.test.uiautomator.UiDevice
-import com.agoda.kakao.screen.Screen
-import com.agoda.kakao.screen.Screen.Companion.onScreen
-import com.agoda.kakao.text.KButton
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runBlockingTest
-import org.hamcrest.Matchers.`is`
 import org.koin.core.module.Module
+import org.koin.dsl.module
 import org.koin.test.KoinTest
-import org.mockito.Mockito
+import org.koin.test.get
 
 
 @RunWith(AndroidJUnit4::class)
@@ -144,6 +128,8 @@ class RemindersActivityTest :
     @get:Rule
     val instantExecutorRule = InstantTaskExecutorRule()
 
+    @get:Rule
+    val activityTestRule = ActivityTestRule(RemindersActivity::class.java)
 
 //    add End to End testing to the app
 
@@ -166,6 +152,7 @@ class RemindersActivityTest :
     }
 
     //toast test
+    //Enable location for test
     @Test
     fun addTask_errorToast() {
         val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
@@ -177,7 +164,9 @@ class RemindersActivityTest :
         onScreen<SearchScreen> {
             saveReminder.click()
         }
-        assertThat(saveViewModel.showToast.getOrAwaitValue(), `is`("Enter all fields"))
+
+        onView(withText("Enter all fields")).inRoot(withDecorView(not(activityTestRule.activity!!.window.decorView))) .check(matches(isDisplayed()))
+
         activityScenario.close()
     }
 
@@ -189,13 +178,13 @@ class RemindersActivityTest :
         dataBindingIdlingResource.monitorActivity(activityScenario)
 
         val device = UiDevice.getInstance(getInstrumentation())
-        val marker = device.findObject(UiSelector().text("Deny"))
+        val option = device.findObject(UiSelector().text("Deny"))
 
         onView(withId(R.id.addReminderFAB)).perform(click())
         onView(withId(R.id.selectLocation)).perform(click())
-        marker.click()
-
-        assertThat(saveViewModel.showSnackBar.value, `is`("Please enable location to receive full features of app"))
+        option.click()
+        onView(withId(com.google.android.material.R.id.snackbar_text))
+            .check((matches(withText("Please enable location to receive full features of app"))))
     }
 
     class SearchScreen : Screen<SearchScreen>() {

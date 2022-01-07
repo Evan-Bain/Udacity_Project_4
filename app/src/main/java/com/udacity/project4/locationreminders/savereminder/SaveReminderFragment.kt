@@ -97,21 +97,9 @@ class SaveReminderFragment : BaseFragment() {
                 NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
         }
 
-        _viewModel.locationEnabled.observe(viewLifecycleOwner, {
-            val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-            val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-            if(it) {
-                if(gps && network) {
-                    createGeofence()
-                } else {
-                    dialogEnableLocation()
-                    }
-                }
-        })
-
         binding.saveReminder.setOnClickListener {
             enableMyLocation()
+            checkLocationAndStartGeofence()
         }
     }
 
@@ -147,12 +135,13 @@ class SaveReminderFragment : BaseFragment() {
                         longitude,
                         100f
                     )
+                    .setExpirationDuration(604800000L)
                     .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                     .build()
                 _viewModel.showSnackBar.value = "Geofence added"
                 geofencingClient.addGeofences(getGeofencingRequest(geofence), geofencePendingIntent)
             } catch (e: Exception) {
-
+                Log.e("SaveReminderFragment", e.toString())
             }
         } else {
             _viewModel.showToast.value = "Enter all fields"
@@ -250,6 +239,20 @@ class SaveReminderFragment : BaseFragment() {
         }
     }
 
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            REQUEST_LOCATION_PERMISSION -> when (resultCode) {
+                Activity.RESULT_OK -> checkLocationAndStartGeofence()
+                Activity.RESULT_CANCELED -> _viewModel.showSnackBar.value = "Cannot create reminder without location"
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -263,6 +266,19 @@ class SaveReminderFragment : BaseFragment() {
             } else {
                 _viewModel.showSnackBar.value =
                     "Enable location to create reminder"
+            }
+        }
+    }
+
+    private fun checkLocationAndStartGeofence() {
+        val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+        if(_viewModel.locationEnabled.value == true) {
+            if(gps && network) {
+                createGeofence()
+            } else {
+                dialogEnableLocation()
             }
         }
     }
