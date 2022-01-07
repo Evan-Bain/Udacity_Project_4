@@ -2,6 +2,7 @@ package com.udacity.project4.locationreminders.savereminder
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.Context
@@ -36,15 +37,29 @@ import com.udacity.project4.locationreminders.RemindersActivity
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationServices
 
-import com.google.android.gms.common.api.GoogleApiClient
 import android.content.DialogInterface
 import android.provider.Settings
+import com.google.android.gms.location.LocationSettingsStatusCodes
+
+import android.content.IntentSender
+import android.content.IntentSender.SendIntentException
+import android.util.Log
+import android.widget.Toast
+import com.google.android.gms.common.api.*
+
+import com.google.android.gms.location.LocationSettingsStates
+
+import com.google.android.gms.location.LocationSettingsResult
+import com.google.android.gms.common.api.GoogleApiClient
+import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 
 
 class SaveReminderFragment : BaseFragment() {
     //Get the view model this time as a single to be shared with the another fragment
     override val _viewModel: SaveReminderViewModel by inject()
     private lateinit var binding: FragmentSaveReminderBinding
+
+    private var googleApiClient: GoogleApiClient? = null
 
     private val REQUEST_LOCATION_PERMISSION = 1
     private lateinit var geofencingClient: GeofencingClient
@@ -82,17 +97,21 @@ class SaveReminderFragment : BaseFragment() {
                 NavigationCommand.To(SaveReminderFragmentDirections.actionSaveReminderFragmentToSelectLocationFragment())
         }
 
-        binding.saveReminder.setOnClickListener {
+        _viewModel.locationEnabled.observe(viewLifecycleOwner, {
             val gps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
             val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-            if(enableMyLocation()) {
+
+            if(it) {
                 if(gps && network) {
-                    _viewModel.showSnackBar.value = "Geofence added"
                     createGeofence()
                 } else {
-                    buildAlertMessage()
+                    dialogEnableLocation()
+                    }
                 }
-            }
+        })
+
+        binding.saveReminder.setOnClickListener {
+            enableMyLocation()
         }
     }
 
@@ -130,6 +149,7 @@ class SaveReminderFragment : BaseFragment() {
                     )
                     .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                     .build()
+                _viewModel.showSnackBar.value = "Geofence added"
                 geofencingClient.addGeofences(getGeofencingRequest(geofence), geofencePendingIntent)
             } catch (e: Exception) {
 
@@ -145,50 +165,38 @@ class SaveReminderFragment : BaseFragment() {
         _viewModel.onClear()
     }
 
-    @SuppressLint("MissingPermission")
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_LOCATION_PERMISSION) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                enableMyLocation()
-            } else {
-                _viewModel.showSnackBar.value =
-                    "Enable location to create reminder"
-            }
-        }
-    }
-
     private fun isPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(
+        val locationPermission = ContextCompat.checkSelfPermission(
             requireContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-    }
 
-    private fun isCoolerPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            requireContext(),
-            Manifest.permission.ACCESS_BACKGROUND_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        //ONLY FOR ANDROID 10 DUE TO THE DEVICE IM TESTING ON
+        //NOT CALLING DIALOG (FEATURE OR BUG IN ANDROID 11)
+        return if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            val backgroundPermission = ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if(!backgroundPermission && locationPermission) {
+                _viewModel.showToast.value = "Enable full location access to create reminder"
+            }
+
+            backgroundPermission && locationPermission
+        } else {
+            locationPermission
+        }
     }
 
     @SuppressLint("MissingPermission")
-    private fun enableMyLocation(): Boolean {
+    private fun enableMyLocation() {
         if (isPermissionGranted()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                if (!isCoolerPermissionGranted()) {
-                    _viewModel.showSnackBar.value =
-                        "Enable location permanently to create reminder"
-                    return false
-                }
-            }
-            return true
+            _viewModel.locationEnabled.value = true
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            //ONLY FOR ANDROID 10 DUE TO THE DEVICE IM TESTING ON BEING ANDROID 11
+            //NOT CALLING DIALOG (FEATURE OR BUG IN ANDROID 11)
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
                 requestPermissions(
                     arrayOf<String>(
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -206,19 +214,56 @@ class SaveReminderFragment : BaseFragment() {
                     REQUEST_LOCATION_PERMISSION
                 )
             }
-            return false
+            _viewModel.locationEnabled.value = false
         }
     }
 
-    private fun buildAlertMessage() {
-        val builder: AlertDialog.Builder = AlertDialog.Builder(activity)
-        builder.setMessage("For a better experience, turn on device location")
-            .setCancelable(false)
-            .setPositiveButton("Ok",
-                DialogInterface.OnClickListener { dialog, id -> startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) })
-            .setNegativeButton("No Thanks",
-                DialogInterface.OnClickListener { dialog, id -> dialog.cancel() })
-        val alert: AlertDialog = builder.create()
-        alert.show()
+    private fun dialogEnableLocation() {
+        googleApiClient = GoogleApiClient.Builder(activity!!)
+            .addApi(LocationServices.API)
+            .addConnectionCallbacks(object : GoogleApiClient.ConnectionCallbacks {
+                override fun onConnected(bundle: Bundle?) {}
+                override fun onConnectionSuspended(i: Int) {
+                    googleApiClient?.connect()
+                }
+            })
+            .addOnConnectionFailedListener {
+            }.build()
+        googleApiClient?.connect()
+
+        val locationRequest = com.google.android.gms.location.LocationRequest.create()
+        val locationBuilder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+        locationBuilder.setAlwaysShow(true)
+
+        val result: PendingResult<LocationSettingsResult> =
+            LocationServices.SettingsApi.checkLocationSettings(googleApiClient, locationBuilder.build())
+        result.setResultCallback { result ->
+            val status: Status = result.status
+             if(status.statusCode == LocationSettingsStatusCodes.RESOLUTION_REQUIRED) {
+                    status.startResolutionForResult(
+                        activity,
+                        REQUEST_LOCATION_PERMISSION
+                    )
+
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                _viewModel.locationEnabled.value = true
+            } else {
+                _viewModel.showSnackBar.value =
+                    "Enable location to create reminder"
+            }
+        }
     }
 }
