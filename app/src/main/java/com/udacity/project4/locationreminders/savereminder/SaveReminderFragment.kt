@@ -116,7 +116,6 @@ class SaveReminderFragment : BaseFragment() {
 
         binding.saveReminder.setOnClickListener {
             enableMyLocation()
-            checkLocationAndStartGeofence()
         }
     }
 
@@ -161,7 +160,6 @@ class SaveReminderFragment : BaseFragment() {
                 Log.e("SaveReminderFragment", e.toString())
             }
         } else {
-            _viewModel.locationEnabled.value = false
             _viewModel.showToast.value = "Enter all fields"
         }
     }
@@ -200,7 +198,10 @@ class SaveReminderFragment : BaseFragment() {
     private fun enableMyLocation() {
         if (isPermissionGranted()) {
             firstLocationEnabled = true
+            checkLocationAndStartGeofence()
+
         } else {
+            firstLocationEnabled = false
             //ONLY FOR ANDROID 10 DUE TO THE DEVICE IM TESTING ON BEING ANDROID 11
             //NOT CALLING DIALOG (FEATURE OR BUG IN ANDROID 11)
             if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
@@ -221,8 +222,6 @@ class SaveReminderFragment : BaseFragment() {
                     REQUEST_LOCATION_PERMISSION
                 )
             }
-            firstLocationEnabled = false
-            _viewModel.locationEnabled.value = false
         }
     }
 
@@ -264,9 +263,10 @@ class SaveReminderFragment : BaseFragment() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_LOCATION_PERMISSION) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                _viewModel.locationEnabled.value = true
+                firstLocationEnabled = true
+                checkLocationAndStartGeofence()
             } else {
-                _viewModel.locationEnabled.value = false
+                firstLocationEnabled = false
                 _viewModel.showSnackBar.value =
                     "Enable location to create reminder"
             }
@@ -278,6 +278,7 @@ class SaveReminderFragment : BaseFragment() {
         val network = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
         if(firstLocationEnabled) {
+            Log.i("SaveReminderFragment", "enabled")
             if(gps && network) {
                 _viewModel.locationEnabled.value = true
             } else {
