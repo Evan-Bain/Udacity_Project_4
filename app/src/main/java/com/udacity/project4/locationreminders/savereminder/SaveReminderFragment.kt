@@ -3,19 +3,25 @@ package com.udacity.project4.locationreminders.savereminder
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.PendingIntent
-import android.content.Context
+import android.content.Context.LOCATION_SERVICE
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.app.ActivityCompat
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.GoogleApiClient
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.*
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.base.NavigationCommand
@@ -24,36 +30,6 @@ import com.udacity.project4.locationreminders.geofence.GeofenceBroadcastReceiver
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
 import com.udacity.project4.utils.setDisplayHomeAsUpEnabled
 import org.koin.android.ext.android.inject
-import android.location.LocationManager
-import android.content.Context.LOCATION_SERVICE
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationRequest
-import androidx.core.content.ContextCompat.getSystemService
-import com.google.android.gms.location.*
-import com.google.android.gms.location.LocationRequest.create
-import com.google.gson.internal.UnsafeAllocator.create
-import com.udacity.project4.locationreminders.RemindersActivity
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.LocationServices
-
-import android.content.DialogInterface
-import android.provider.Settings
-import com.google.android.gms.location.LocationSettingsStatusCodes
-
-import android.content.IntentSender
-import android.content.IntentSender.SendIntentException
-import android.util.Log
-import android.widget.Toast
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import com.google.android.gms.common.api.*
-
-import com.google.android.gms.location.LocationSettingsStates
-
-import com.google.android.gms.location.LocationSettingsResult
-import com.google.android.gms.common.api.GoogleApiClient
-import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 
 
 class SaveReminderFragment : BaseFragment() {
@@ -151,7 +127,7 @@ class SaveReminderFragment : BaseFragment() {
                         longitude,
                         100f
                     )
-                    .setExpirationDuration(604800000L)
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
                     .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                     .build()
                 _viewModel.showSnackBar.value = "Geofence added"
@@ -236,7 +212,7 @@ class SaveReminderFragment : BaseFragment() {
             .setAlwaysShow(true)
 
         val pendingResult = LocationServices
-            .getSettingsClient(activity!!)
+            .getSettingsClient(requireActivity())
             .checkLocationSettings(builder.build())
 
         pendingResult.addOnCompleteListener { task ->
